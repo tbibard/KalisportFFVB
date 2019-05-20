@@ -23,14 +23,15 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
 
     public function configure()
     {
-        $this->setName('ffvbcalendrier:build-clubs-adverses')
-            ->setDescription("Construit un fichier d'import de clubs adverses à partir d'un export de calendrier de la FFVB.")
+        $this->setName('ffvbcalendrier:build-from-ffvb')
+            ->setDescription("Construit un fichier d'import de clubs adverses et un fichier de programme à partir d'un export de calendrier de la FFVB.")
             ->setHelp('')
             ->addArgument('filename', InputArgument::REQUIRED, 'filename')
             ->addArgument('equipe', InputArgument::REQUIRED, 'code equipe Kalisport')
             ->addOption('division', null, InputOption::VALUE_REQUIRED, 'Libellé de la division/championnat')
             ->addOption('ffvb-equipe', null, InputOption::VALUE_REQUIRED, 'Si deux équipes du club dans le même championnat, 
-                identifie le nom de l\'équipe côté ffvb');
+                identifie le nom de l\'équipe côté ffvb')
+            ->addOption('only-adverses', null, InputOption::VALUE_NONE, "build uniquement le fichier des équipes adverses");
 
         // TODO : manage options to output filename and others...
     }
@@ -99,6 +100,10 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
                 ];
             }
 
+            if ($input->getOption('only-adverses')) {
+                exit;
+            }
+
             // Write import file
             $handle = fopen('import-clubs-adverses.csv', 'a+');
             $firstRow = true;
@@ -115,6 +120,8 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
             }
             fclose($handle);
 
+
+
             // Write calendrier
             $matchDatas = [];
             $row        = 1;
@@ -125,40 +132,73 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
                         continue;
                     }
 
+                    $lieu = $evenement = $clubAdverseId = null;
+
                     // Traitement des lignes de données
+                    $output->writeln(implode('-', $data));
                     // Récupération des identifiants de club
                     if (!empty($data[5]) and !empty($data[7]) and ($data[5] == getenv('FFVB_CLUB_ID') or $data[7] == getenv('FFVB_CLUB_ID'))) {
-                        $output->writeln(implode('-', $data));
+                        // Vérifie si match match entre deux équipes du même club
+                        if ($data[5] == getenv('FFVB_CLUB_ID') and $data[7] == getenv('FFVB_CLUB_ID')
+                            and empty($input->getOption('ffvb-equipe'))) {
+                            $output->writeln('<error>Match entre deux équipes du même club, vous devez indiquer le nom ffvb de votre équipe (option ffvb-equipe) !</error>');
+                            exit;
+                        }
 
-                        // Vérifie si match à domicile ou extérieur
+                        // Check si match entre deux équipes du même club
                         if ($data[5] == getenv('FFVB_CLUB_ID') and $data[7] == getenv('FFVB_CLUB_ID')) {
-                            // Match entre deux équipes du même club => vérifier le nom de l'équipe ffvb
-                            if (empty($input->getOption('ffvb-equipe'))) {
-                                $output->writeln('<error>Match entre deux équipes du même club, vous devez indiquer le nom ffvb de votre équipe (option ffvb-equipe) !</error>');
+                            // Check si ffvb-equipe apparait dans l'un des deux clubs opposés
+                            if (strtoupper($input->getOption('ffvb-equipe')) != strtoupper($data[6]) and
+                                strtoupper($input->getOption('ffvb-equipe')) != strtoupper($data[8])) {
+                                $output->writeln('<error>Match entre deux équipes du même club, option ffvb-equipe non présente parmi les deux équipes opposées !</error>');
                                 exit;
                             }
 
                             if (strtoupper($input->getOption('ffvb-equipe')) == strtoupper($data[6])) {
                                 // Match à domicile
-                                $lieu      = 'Domicile';
-                                $evenement = $data[8];
+                                $lieu          = 'Domicile';
+                                $evenement     = $data[8];
+                                $clubAdverseId = $data[7];
                             } else {
                                 // Match extérieur
-                                $lieu      = 'Extérieur';
-                                $evenement = $data[6];
+                                $lieu          = 'Extérieur';
+                                $evenement     = $data[6];
+                                $clubAdverseId = $data[5];
                             }
-                            $clubAdverseId = $data[5];
-                        } elseif ($data[5] == getenv('FFVB_CLUB_ID')) {
-                            // Match à domicile
-                            $lieu          = 'Domicile';
-                            $evenement     = $data[8];
-                            $clubAdverseId = $data[7];
                         } else {
-                            // Match extérieur
-                            $lieu          = 'Extérieur';
-                            $evenement     = $data[6];
-                            $clubAdverseId = $data[5];
+                            if (!empty($input->getOption('ffvb-equipe'))) {
+                                // Match entre deux clubs différents
+                                if ($data[5] == getenv('FFVB_CLUB_ID') and $data[6] == $input->getOption('ffvb-equipe')) {
+                                    // Match à domicile
+                                    $lieu          = 'Domicile';
+                                    $evenement     = $data[8];
+                                    $clubAdverseId = $data[7];
+                                } elseif ($data[7] == getenv('FFVB_CLUB_ID') and $data[8] == $input->getOption('ffvb-equipe')) {
+                                    // Match extérieur
+                                    $lieu          = 'Extérieur';
+                                    $evenement     = $data[6];
+                                    $clubAdverseId = $data[5];
+                                } else {
+                                    $output->writeln('-- skip');
+                                    continue;
+                                }
+                            } else {
+                                // Match entre deux clubs différents
+                                if ($data[5] == getenv('FFVB_CLUB_ID')) {
+                                    // Match à domicile
+                                    $lieu          = 'Domicile';
+                                    $evenement     = $data[8];
+                                    $clubAdverseId = $data[7];
+                                } else {
+                                    // Match extérieur
+                                    $lieu          = 'Extérieur';
+                                    $evenement     = $data[6];
+                                    $clubAdverseId = $data[5];
+                                }
+                            }
                         }
+
+                        $output->writeln('-- got');
 
                         $dateHeureMatch = \DateTime::createFromFormat('Y-m-d H:i', $data[3] . ' ' . $data[4]);
 
@@ -216,13 +256,20 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
                             }
                         }
 
+                    } else {
+                        $output->writeln('-- skip');
                     }
                     $row++;
                 }
                 fclose($handle);
 
                 // Write matchs datas
-                $handle = fopen('import-calendrier-' . $input->getArgument('equipe') . '.csv', 'w');
+                if (empty($input->getOption('ffvb-equipe'))) {
+                    $handle = fopen('import-calendrier-' . $input->getArgument('equipe') . '.csv', 'w');
+                } else {
+                    $handle = fopen('import-calendrier-' . $input->getArgument('equipe').
+                        '-'.str_replace(' ', '-', $input->getOption('ffvb-equipe')).'.csv', 'w');
+                }
                 $firstRow = true;
                 foreach ($matchDatas as $matchData) {
                     if ($firstRow) {
