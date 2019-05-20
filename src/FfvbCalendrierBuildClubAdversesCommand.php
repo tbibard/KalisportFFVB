@@ -105,7 +105,7 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
             }
 
             // Write import file
-            $handle = fopen('import-clubs-adverses.csv', 'a+');
+            $handle = fopen('./output/import-clubs-adverses.csv', 'a+');
             $firstRow = true;
             foreach ($clubsAdversesDatas as $clubAdverseData) {
                 if ($firstRow) {
@@ -204,7 +204,7 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
 
                         // Build match data
                         $matchDatas[$data[2]] = [
-                            'ID'                       => '',
+                            'ID'                       => $data[2],
                             'EQUIPE'                   => $input->getArgument('equipe'),
                             'EVENEMENT'                => utf8_encode($evenement),
                             'TYPE_EVENEMENT'           => 'Match de championnat',
@@ -265,9 +265,9 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
 
                 // Write matchs datas
                 if (empty($input->getOption('ffvb-equipe'))) {
-                    $handle = fopen('import-calendrier-' . $input->getArgument('equipe') . '.csv', 'w');
+                    $handle = fopen('./output/import-calendrier-' . $input->getArgument('equipe') . '.csv', 'w');
                 } else {
-                    $handle = fopen('import-calendrier-' . $input->getArgument('equipe').
+                    $handle = fopen('./output/import-calendrier-' . $input->getArgument('equipe').
                         '-'.str_replace(' ', '-', $input->getOption('ffvb-equipe')).'.csv', 'w');
                 }
                 $firstRow = true;
