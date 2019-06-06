@@ -8,4 +8,5 @@ use NblCalendar\FfvbCalendrierBuildClubAdversesCommand;
 
 $app = new Application('FfvbToKalisport App', 'v0.0.1');
 $app->add(new FfvbCalendrierBuildClubAdversesCommand());
+$app->add(new \NblCalendar\FfvbClassementBuildCommand());
 $app->run();
