@@ -204,12 +204,12 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
 
                         // Build match data
                         $matchDatas[$data[2]] = [
-                            'ID'                       => $data[2],
                             'EQUIPE'                   => $input->getArgument('equipe'),
                             'EVENEMENT'                => utf8_encode($evenement),
                             'TYPE_EVENEMENT'           => 'Match de championnat',
                             'CLUB_ADVERSE'             => $clubsAdversesDatas[$clubAdverseId]['NOM'],
                             'NUMERO_JOURNEE'           => $data[1],
+                            'NUMERO_RENCONTRE'         => $data[2],
                             'DIVISION'                 => $input->getOption('division'),
                             'INFO_COMPLEMENTAIRE'      => '',
                             'DATE'                     => $dateHeureMatch->format('d/m/Y'),
