@@ -68,12 +68,13 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
             fclose($handle);
         }
 
-        print_r($clubs);
+        // print_r($clubs);
 
         // Build export file
         if (!empty($clubs)) {
             $clubsAdversesDatas = [];
 
+            $output->writeln('- récupération des infos pour les '.count($clubs).' clubs:');
             foreach ($clubs as $club) {
                 $clubInfos = $this->getClubInfosById($club);
 
@@ -84,7 +85,7 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
                     'NUMERO_FEDERAL'        => $clubInfos['id'],
                     'COULEUR1'              => '',
                     'COULEUR2'              => '',
-                    'SITE_INTERNET'         => $clubInfos['weblink_ffvb'],
+                    'SITE_INTERNET'         => $clubInfos['website'],
                     'FACEBOOK'              => '',
                     'TWITTER'               => '',
                     'ADRESSE1'              => '',
@@ -94,14 +95,11 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
                     'PAYS'                  => '',
                     'REGION'                => $clubInfos['ligue'],
                     'DEPARTEMENT'           => $clubInfos['comite'],
-                    'EMAIL'                 => '',
-                    'TELEPHONE'             => '',
-                    'INFOS_COMPLEMENTAIRES' => '',
+                    'EMAIL'                 => $clubInfos['mail'],
+                    'TELEPHONE'             => $clubInfos['portable'],
+                    'INFOS_COMPLEMENTAIRES' => 'Correspondant: '.$clubInfos['correspondant'],
                 ];
-            }
-
-            if ($input->getOption('only-adverses')) {
-                exit;
+                $output->writeln('-- club '.$club.': '.$clubInfos['nom']);
             }
 
             // Write import file
@@ -120,7 +118,9 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
             }
             fclose($handle);
 
-
+            if ($input->getOption('only-adverses')) {
+                exit;
+            }
 
             // Write calendrier
             $matchDatas = [];
@@ -292,6 +292,9 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
             'ligue'        => '',
             'comite'       => '',
             'weblink_ffvb' => 'http://www.ffvbbeach.org/ffvbapp/adressier/rech_aff.php?id_club=' . $id,
+            'portable'     => '',
+            'mail'         => '',
+            'website'      => '',
         ];
 
         $client  = new Client();
@@ -300,6 +303,37 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
         // Retrieve Club Name
         $data         = trim($crawler->filter('table td.titreblanc_gd div')->text());
         $infos['nom'] = str_replace($id . ' ', '', $data);
+
+        // Retrieve coordonnées
+        $tableDatas = $crawler->filter('table')->eq(4);
+        switch(count($tableDatas->filter('tr'))) {
+            case 4:
+                $infos['portable'] = $tableDatas->filter('td')->eq(2)->text();
+                $infos['mail']     = $tableDatas->filter('td')->eq(4)->text();
+                $infos['website']  = $tableDatas->filter('td')->eq(6)->text();
+            break;
+
+            case 5:
+                $infos['portable'] = $tableDatas->filter('td')->eq(4)->text();
+                $infos['mail']     = $tableDatas->filter('td')->eq(6)->text();
+                $infos['website']  = $tableDatas->filter('td')->eq(8)->text();
+            break;
+
+            case 6:
+                $infos['portable'] = $tableDatas->filter('td')->eq(4)->text();
+                $infos['mail']     = $tableDatas->filter('td')->eq(8)->text();
+                $infos['website']  = $tableDatas->filter('td')->eq(10)->text();
+            break;
+        }
+
+        // Retrieve Correspondant
+        $tableDatas = $crawler->filter('table')->eq(6);
+        $infos['correspondant'] = $tableDatas->filter('td')->eq(2)->text();
+
+        // Retrieve couleur du club
+        // $crawler->filter('table td.titrearticle div')->each(function($node) {
+        //     echo str_replace('Couleurs du club:', '', trim($node->text()))."\n";
+        // });
 
         // Retrieve Ligue / Comite
         $data            = $crawler->filter('table td.liensuite4_gd');
