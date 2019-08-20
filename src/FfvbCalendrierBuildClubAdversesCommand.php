@@ -25,15 +25,26 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
     {
         $this->setName('ffvbcalendrier:build-from-ffvb')
             ->setDescription("Construit un fichier d'import de clubs adverses et un fichier de programme à partir d'un export de calendrier de la FFVB.")
-            ->setHelp('')
+            ->setHelp('
+Structure du fichier de la FFVB:
+    1 => Numéro de la journée
+    2 => Identifiant FFVB du match dans le championnat
+    3 => Date du match
+    4 => Heure du match
+    5 => Identifiant FFVB du club recevant
+    6 => Nom du club recevant
+    7 => Identifiant FFVB du club visiteur
+    8 => Nom du club visiteur
+    12 => Nom de la salle         
+    13 => Set
+    14 => Score
+            ')
             ->addArgument('filename', InputArgument::REQUIRED, 'filename')
             ->addArgument('equipe', InputArgument::REQUIRED, 'code equipe Kalisport')
             ->addOption('division', null, InputOption::VALUE_REQUIRED, 'Libellé de la division/championnat')
             ->addOption('ffvb-equipe', null, InputOption::VALUE_REQUIRED, 'Si deux équipes du club dans le même championnat, 
                 identifie le nom de l\'équipe côté ffvb')
             ->addOption('only-adverses', null, InputOption::VALUE_NONE, "build uniquement le fichier des équipes adverses");
-
-        // TODO : manage options to output filename and others...
     }
 
     public function execute(InputInterface $input, OutputInterface $output)
@@ -67,8 +78,6 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
             }
             fclose($handle);
         }
-
-        // print_r($clubs);
 
         // Build export file
         if (!empty($clubs)) {
@@ -117,12 +126,14 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
                 }
             }
             fclose($handle);
+            $output->writeln('<info>Fichier des clubs adverses générés.</info>');
 
             if ($input->getOption('only-adverses')) {
                 exit;
             }
 
             // Write calendrier
+            $output->writeln('Gestion du calendrier:');
             $matchDatas = [];
             $row        = 1;
             if (($handle = fopen($input->getArgument('filename'), "r")) !== FALSE) {
@@ -135,8 +146,7 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
                     $lieu = $evenement = $clubAdverseId = null;
 
                     // Traitement des lignes de données
-                    $output->writeln(implode('-', $data));
-                    // Récupération des identifiants de club
+                    // Check si ligne correspond à un match avec une équipe appartenant au club géré
                     if (!empty($data[5]) and !empty($data[7]) and ($data[5] == getenv('FFVB_CLUB_ID') or $data[7] == getenv('FFVB_CLUB_ID'))) {
                         // Vérifie si match match entre deux équipes du même club
                         if ($data[5] == getenv('FFVB_CLUB_ID') and $data[7] == getenv('FFVB_CLUB_ID')
@@ -166,39 +176,28 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
                                 $clubAdverseId = $data[5];
                             }
                         } else {
+                            // Cas ou une seule équipe du club participe à la rencontre
                             if (!empty($input->getOption('ffvb-equipe'))) {
-                                // Match entre deux clubs différents
-                                if ($data[5] == getenv('FFVB_CLUB_ID') and $data[6] == $input->getOption('ffvb-equipe')) {
-                                    // Match à domicile
-                                    $lieu          = 'Domicile';
-                                    $evenement     = $data[8];
-                                    $clubAdverseId = $data[7];
-                                } elseif ($data[7] == getenv('FFVB_CLUB_ID') and $data[8] == $input->getOption('ffvb-equipe')) {
-                                    // Match extérieur
-                                    $lieu          = 'Extérieur';
-                                    $evenement     = $data[6];
-                                    $clubAdverseId = $data[5];
-                                } else {
-                                    $output->writeln('-- skip');
+                                // On élimine un match avec une autre équipe du club dans le même championnat (géré ci-dessus)
+                                if ($data[5] == getenv('FFVB_CLUB_ID') and strtoupper($data[6]) != strtoupper($input->getOption('ffvb-equipe')) or 
+                                    $data[7] == getenv('FFVB_CLUB_ID') and strtoupper($data[8]) != strtoupper($input->getOption('ffvb-equipe'))) {
                                     continue;
                                 }
+                            }
+                            
+                            // Match entre deux clubs différents
+                            if ($data[5] == getenv('FFVB_CLUB_ID')) {
+                                // Match à domicile
+                                $lieu          = 'Domicile';
+                                $evenement     = $data[8];
+                                $clubAdverseId = $data[7];
                             } else {
-                                // Match entre deux clubs différents
-                                if ($data[5] == getenv('FFVB_CLUB_ID')) {
-                                    // Match à domicile
-                                    $lieu          = 'Domicile';
-                                    $evenement     = $data[8];
-                                    $clubAdverseId = $data[7];
-                                } else {
-                                    // Match extérieur
-                                    $lieu          = 'Extérieur';
-                                    $evenement     = $data[6];
-                                    $clubAdverseId = $data[5];
-                                }
+                                // Match extérieur
+                                $lieu          = 'Extérieur';
+                                $evenement     = $data[6];
+                                $clubAdverseId = $data[5];
                             }
                         }
-
-                        $output->writeln('-- got');
 
                         $dateHeureMatch = \DateTime::createFromFormat('Y-m-d H:i', $data[3] . ' ' . $data[4]);
 
@@ -239,25 +238,9 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
                             if (count($sets) == 2) {
                                 $matchDatas[$data[2]]['SCORE_LOCAUX']    = trim($sets[0]);
                                 $matchDatas[$data[2]]['SCORE_VISITEURS'] = trim($sets[1]);
-
-//                                if (!empty($data[10])) {
-//                                    $scores = explode(',', $data[10]);
-//                                    if (count($scores) == ($sets[0] + $sets[1])) {
-//                                        // Même nombre de sets comptabilisés que de scores
-//                                        $set = 1;
-//                                        foreach ($scores as $score) {
-//                                            $setScores                                                   = explode('-', $score);
-//                                            $matchDatas[$data[2]]['SCORE_PERIODE' . $set . '_LOCAUX']    = $setScores[0];
-//                                            $matchDatas[$data[2]]['SCORE_PERIODE' . $set . '_VISITEURS'] = $setScores[1];
-//                                            $set++;
-//                                        }
-//                                    }
-//                                }
                             }
                         }
-
-                    } else {
-                        $output->writeln('-- skip');
+                        $output->writeln('- Journée '.$data[1].' / match: '.$data[2].' => '.utf8_encode($evenement).' le '.$dateHeureMatch->format('d/m/Y').' à '.$dateHeureMatch->format('H:i'));
                     }
                     $row++;
                 }
@@ -280,6 +263,7 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
                     fputcsv($handle, $matchData, ';');
                 }
                 fclose($handle);
+                $output->writeln('<info>Fichier du programme/calendrier de l\'équipe généré.</info>');
             }
         }
     }
