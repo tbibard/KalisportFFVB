@@ -29,7 +29,7 @@ class FfvbClassementBuildCommand extends SymfonyCommand
 
     public function configure()
     {
-        $this->setName('ffvbclassement:build-from-ffvb')
+        $this->setName('ffvbclassement:build')
             ->setDescription("Crawl le site de la FFVB à partir de certaines options et retourne un tableau html représentant le classement d'une équipe.")
             ->setHelp('')
             ->addArgument('codent', InputArgument::REQUIRED, 'Variable codent de la FFVB')

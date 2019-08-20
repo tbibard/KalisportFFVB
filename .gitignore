@@ -2,3 +2,4 @@
 .idea/*
 /input/
 /output/
+.env
