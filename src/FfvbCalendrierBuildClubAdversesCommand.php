@@ -23,7 +23,7 @@ class FfvbCalendrierBuildClubAdversesCommand extends SymfonyCommand
 
     public function configure()
     {
-        $this->setName('ffvbcalendrier:build-from-ffvb')
+        $this->setName('ffvbcalendrier:build')
             ->setDescription("Construit un fichier d'import de clubs adverses et un fichier de programme à partir d'un export de calendrier de la FFVB.")
             ->setHelp('
 Structure du fichier de la FFVB:
