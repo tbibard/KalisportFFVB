@@ -101,7 +101,7 @@ Structure du fichier de la FFVB:
                     'ADRESSE2'              => '',
                     'CODE_POSTAL'           => '',
                     'VILLE'                 => '',
-                    'PAYS'                  => '',
+                    'PAYS'                  => 'France',
                     'REGION'                => $clubInfos['ligue'],
                     'DEPARTEMENT'           => $clubInfos['comite'],
                     'EMAIL'                 => $clubInfos['mail'],
