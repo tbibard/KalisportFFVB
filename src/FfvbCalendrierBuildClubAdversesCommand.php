@@ -70,7 +70,7 @@ Structure du fichier de la FFVB:
                 // Récupération des identifiants de club
                 // même pour le club géré besoin pour calendrier avec 2 équipes du club dans même championnat
                 foreach ([5, 7] as $key) {
-                    if (!empty($data[$key])) {
+                    if (!empty($data[$key]) and $data[$key] != '671556') {
                         $clubs[$data[$key]] = $data[$key];
                     }
                 }
@@ -102,7 +102,7 @@ Structure du fichier de la FFVB:
                     'CODE_POSTAL'           => '',
                     'VILLE'                 => '',
                     'PAYS'                  => 'France',
-                    'REGION'                => $clubInfos['ligue'],
+                    // 'REGION'                => $clubInfos['ligue'],
                     'DEPARTEMENT'           => $clubInfos['comite'],
                     'EMAIL'                 => $clubInfos['mail'],
                     'TELEPHONE'             => $clubInfos['portable'],
@@ -147,7 +147,8 @@ Structure du fichier de la FFVB:
 
                     // Traitement des lignes de données
                     // Check si ligne correspond à un match avec une équipe appartenant au club géré
-                    if (!empty($data[5]) and !empty($data[7]) and ($data[5] == getenv('FFVB_CLUB_ID') or $data[7] == getenv('FFVB_CLUB_ID'))) {
+                    if (!empty($data[5]) and !empty($data[7]) and $data[5] != '671556' and $data[7] != '671556' and 
+                        ($data[5] == getenv('FFVB_CLUB_ID') or $data[7] == getenv('FFVB_CLUB_ID'))) {
                         // Vérifie si match match entre deux équipes du même club
                         if ($data[5] == getenv('FFVB_CLUB_ID') and $data[7] == getenv('FFVB_CLUB_ID')
                             and empty($input->getOption('ffvb-equipe'))) {
@@ -161,6 +162,7 @@ Structure du fichier de la FFVB:
                             if (strtoupper($input->getOption('ffvb-equipe')) != strtoupper($data[6]) and
                                 strtoupper($input->getOption('ffvb-equipe')) != strtoupper($data[8])) {
                                 $output->writeln('<error>Match entre deux équipes du même club, option ffvb-equipe non présente parmi les deux équipes opposées !</error>');
+                                echo $data[6].'-'.$data[8]."\n";
                                 exit;
                             }
 
