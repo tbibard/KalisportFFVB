@@ -250,9 +250,9 @@ Structure du fichier de la FFVB:
 
                 // Write matchs datas
                 if (empty($input->getOption('ffvb-equipe'))) {
-                    $handle = fopen('./output/import-calendrier-' . $input->getArgument('equipe') . '.csv', 'w');
+                    $handle = fopen('./output/import-calendrier-'.date('Ymd-His').'-' . $input->getArgument('equipe') . '.csv', 'w');
                 } else {
-                    $handle = fopen('./output/import-calendrier-' . $input->getArgument('equipe').
+                    $handle = fopen('./output/import-calendrier-'.date('Ymd-His').'-' . $input->getArgument('equipe').
                         '-'.str_replace(' ', '-', $input->getOption('ffvb-equipe')).'.csv', 'w');
                 }
                 $firstRow = true;
