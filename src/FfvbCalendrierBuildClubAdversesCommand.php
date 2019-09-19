@@ -112,7 +112,7 @@ Structure du fichier de la FFVB:
             }
 
             // Write import file
-            $handle = fopen('./output/import-clubs-adverses.csv', 'a+');
+            $handle = fopen('./output/import-clubs-adverses-'.date('Ymd-His').'.csv', 'w');
             $firstRow = true;
             foreach ($clubsAdversesDatas as $clubAdverseData) {
                 if ($firstRow) {
