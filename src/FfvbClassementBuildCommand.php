@@ -45,7 +45,11 @@ class FfvbClassementBuildCommand extends SymfonyCommand
         if ($input->getOption('saison')) {
             $this->saison = $input->getOption('saison');
         } else {
-            $this->saison = '2018/2019';
+            if ((int) date('n') >= 9 ) {
+                $this->saison = date('Y').'/'.(date('Y')+1);
+            } else {
+                $this->saison = (date('Y')-1).'/'.date('Y');
+            }
         }
 
         $classementUri = $this->classementBaseUrl.'?saison='.$this->saison.'&codent='.$input->getArgument('codent').
