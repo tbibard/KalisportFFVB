@@ -34,10 +34,8 @@ class FfvbClassementBuildCommand extends SymfonyCommand
             ->setHelp('')
             ->addArgument('codent', InputArgument::REQUIRED, 'Variable codent de la FFVB')
             ->addArgument('poule', InputArgument::REQUIRED, 'Variable poule de la FFVB')
-            ->addOption('saison', null, InputOption::VALUE_REQUIRED, 'Saison');
-
-
-        // TODO : manage options to output filename and others...
+            ->addOption('saison', null, InputOption::VALUE_REQUIRED, 'Saison')
+            ->addOption('keep-all', true, InputOption::VALUE_NONE, 'Conserver toutes les colonnes');
     }
 
     public function execute(InputInterface $input, OutputInterface $output)
@@ -68,7 +66,28 @@ class FfvbClassementBuildCommand extends SymfonyCommand
 
         // Purify html
         $clean = $purifier->purify('<table>'.$data->html().'</table>');
+        $html = str_replace("\n", '', $clean);;
 
-        echo str_replace("\n", '', $clean);
+        $doc = new \DomDocument();
+        $doc->loadHTML($html);
+
+        if (!$input->getOption('keep-all')) {
+            // Build td index for column to remove
+            $tdToRemove = [];
+            foreach ($doc->getElementsByTagName('tr')[0]->getElementsByTagName('td') as $key => $td) {
+                if (in_array($td->nodeValue, ['Set.P', 'Set.C', 'Pts.P', 'Pts.C', 'Coeff.S', 'Coeff.P'])) {
+                    array_push($tdToRemove, $key);
+                }
+            }
+
+            foreach ($doc->getElementsByTagName('tr') as $tr) {
+                foreach ($tdToRemove as $key => $index) {
+                    $td = $tr->getElementsByTagName('td')->item($index - $key);
+                    $tr->removeChild($td);
+                }
+            }
+        }
+        
+        echo str_replace("\n", "", $doc->saveHTML($doc->getElementsByTagName('table')->item(0)))."\n";
     }
 }
