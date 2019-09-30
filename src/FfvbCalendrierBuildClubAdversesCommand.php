@@ -161,9 +161,7 @@ Structure du fichier de la FFVB:
                             // Check si ffvb-equipe apparait dans l'un des deux clubs opposés
                             if (strtoupper($input->getOption('ffvb-equipe')) != strtoupper($data[6]) and
                                 strtoupper($input->getOption('ffvb-equipe')) != strtoupper($data[8])) {
-                                $output->writeln('<error>Match entre deux équipes du même club, option ffvb-equipe non présente parmi les deux équipes opposées !</error>');
-                                echo $data[6].'-'.$data[8]."\n";
-                                exit;
+                                continue;
                             }
 
                             if (strtoupper($input->getOption('ffvb-equipe')) == strtoupper($data[6])) {
