@@ -67,6 +67,7 @@ class FfvbClassementBuildCommand extends SymfonyCommand
         // Purify html
         $clean = $purifier->purify('<table>'.$data->html().'</table>');
         $html = str_replace("\n", '', $clean);;
+        $html = str_replace("<table>", "<table border=\"1\" style=\"width: 100%\">", $html);
 
         $doc = new \DomDocument();
         $doc->loadHTML($html);
