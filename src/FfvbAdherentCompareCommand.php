@@ -27,7 +27,7 @@ class FfvbAdherentCompareCommand extends SymfonyCommand
             ->setDescription("Compare les adhérents saisis dans Kalisport et sur le site de la FFVB, à partir des fichiers d'export Kalisport & FFVB.")
             ->addArgument('ffvb-export', InputArgument::REQUIRED, 'Export FFVB')
             ->addArgument('kalisport-export', InputArgument::REQUIRED, 'Export Kalisport')
-            ->addOption('kalisport-no-licence', null, InputOption::VALUE_NONE, 'Retrouve les adhérents sans numéro de licence FFVB.');
+            ->addOption('kalisport-no-licence', null, InputOption::VALUE_NONE, 'Retrouve les adhérents Kalisport sans numéro de licence FFVB.');
     }
 
     public function execute(InputInterface $input, OutputInterface $output)
@@ -40,7 +40,7 @@ class FfvbAdherentCompareCommand extends SymfonyCommand
             while (($data = fgetcsv($handle, 1000, ";")) !== FALSE) {
                 if ($row === 1) {
                     // Vérification du type du fichier source : nombre de colonnes et entêtes colonnes
-                    if (count($data) != 69 or $data[0] !== 'lnumlic' or $data[1] !== 'Nom' or $data[2] !== 'Prenom') {
+                    if (count($data) != 70 or $data[0] !== 'lnumlic' or $data[1] !== 'Nom' or $data[2] !== 'Prenom' or $data[4] != 'Categorie') {
                         $output->writeln("<error>Fichier source ne semble pas être un export de licenciés de la FFVB !</error>");
                         exit;
                     }
@@ -58,22 +58,20 @@ class FfvbAdherentCompareCommand extends SymfonyCommand
                 // Récupération des licenciés sources FFVB
                 foreach ($keys as $key => $index) {
                     if (!empty($data[0])) {
-                        $ffvbLicencies[$data[0]][$key] = $data[$index];
+                        $ffvbLicencies[$data[$keys['licence']]][$key] = $data[$index];
                     }
                 }
                 $row++;
             }
             fclose($handle);
         }
-//        print_r($ffvbLicencies);
-//        exit;
 
         $row = 1;
         if (($handle = fopen($input->getArgument('kalisport-export'), "r")) !== FALSE) {
             while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
                 if ($row === 1) {
                     // Vérification du type du fichier source : nombre de colonnes et entêtes colonnes
-                    if (count($data) != 74 or $data[18] !== 'NUM_LICENCE' or $data[1] !== 'NOM' or $data[2] !== 'PRENOM') {
+                    if (count($data) != 91 or $data[28] !== 'NUM_LICENCE' or $data[1] !== 'NOM' or $data[2] !== 'PRENOM') {
                         $output->writeln("<error>Fichier source ne semble pas être un export de licenciés de la FFVB !</error>");
                         exit;
                     }
@@ -83,56 +81,59 @@ class FfvbAdherentCompareCommand extends SymfonyCommand
                     continue;
                 }
                 $keys = array(
-                    'licence' => 18,
+                    'licence' => 28,
                     'nom'     => 1,
                     'prenom'  => 2,
                 );
 
-                // Traitement des lignes de données
-                // Récupération des licenciés sources Kalisport
-                if ($input->getOption('kalisport-no-licence')) {
-                    $mappedKey = 0;
-                } else {
-                    $mappedKey = 0;
-                }
-
                 foreach ($keys as $key => $index) {
-                    $kalisportLicencies[$data[$mappedKey]][$key] = $data[$index];
-
+                    if (!empty($data[0])) {
+                        $kalisportLicencies[$data[$keys['licence']]][$key] = $data[$index];
+                    }
                 }
                 $row++;
             }
             fclose($handle);
-
         }
+
+        // Build diff arrays
+        $ffvbLicencesWithNoKalisport = array_diff_key($ffvbLicencies, $kalisportLicencies);
+        $kalisportLicenciesWithNoLicence = array_diff_key($kalisportLicencies, $ffvbLicencies);
 
         if ($input->getOption('kalisport-no-licence')) {
             // Retrieve licencie with no num licence
             $noNumLicence = [];
-            foreach ($kalisportLicencies as $id => $licencie) {
+            foreach ($kalisportLicencies as $licencie) {
                 if (empty($licencie['licence'])) {
                     $noNumLicence[] = $licencie;
                 }
             }
-            print_r($noNumLicence);
-            exit;
-        }
 
-//        print_r($kalisportLicencies);
-//        print_r($ffvbLicencies);
-
-        // Retrieve licencie from FFVB with licence is unknown in Kalisport
-        $unknownLicences = [];
-        foreach ($ffvbLicencies as $num => $licencie) {
-            if (!array_key_exists($num, $kalisportLicencies)) {
-                $unknownLicences[] = $licencie;
+            if (!empty($noNumLicence)) {
+                // Write file
+                $filename = './output/Kalisport-with-no-licence-' . date('Ymd-His') . '.csv';
+                $handle = fopen($filename, 'w');
+                $firstRow = true;
+                foreach ($noNumLicence as $unknownLicence) {
+                    if ($firstRow) {
+                        // Add entête
+                        fputcsv($handle, array_keys($unknownLicence), ';');
+                        $firstRow = false;
+                    }
+                    // On n'écrit pas le club géré dans les clubs adverses
+                    fputcsv($handle, $unknownLicence, ';');
+                }
+                fclose($handle);
+                $output->writeln('<info>Fichier des adhérent Kalisport sans numéro de licence (' . $filename . ').</info>');
             }
         }
 
-        // Write file
-        $handle   = fopen('./output/FFVB-licence-Kalisport-' . date('Ymd-His') . '.csv', 'w');
+        // Write files
+        // Write ffvbLicencesWithNoKalisport
+        $filename = './output/FFVB-licences-with-no-Kalisport-' . date('Ymd-His') . '.csv';
+        $handle   = fopen($filename, 'w');
         $firstRow = true;
-        foreach ($unknownLicences as $unknownLicence) {
+        foreach ($ffvbLicencesWithNoKalisport as $unknownLicence) {
             if ($firstRow) {
                 // Add entête
                 fputcsv($handle, array_keys($unknownLicence), ';');
@@ -142,6 +143,22 @@ class FfvbAdherentCompareCommand extends SymfonyCommand
             fputcsv($handle, $unknownLicence, ';');
         }
         fclose($handle);
-        $output->writeln('<info>Fichier des licenciés FFVB absent de Kalisport généré.</info>');
+        $output->writeln('<info>Fichier des licenciés FFVB absent de Kalisport généré ('.$filename.').</info>');
+
+        // Write $kalisportLicenciesWithNoLicence
+        $filename = './output/Kalisport-with-no-FFVB-licence-' . date('Ymd-His') . '.csv';
+        $handle   = fopen($filename, 'w');
+        $firstRow = true;
+        foreach ($kalisportLicenciesWithNoLicence as $unknownLicence) {
+            if ($firstRow) {
+                // Add entête
+                fputcsv($handle, array_keys($unknownLicence), ';');
+                $firstRow = false;
+            }
+            // On n'écrit pas le club géré dans les clubs adverses
+            fputcsv($handle, $unknownLicence, ';');
+        }
+        fclose($handle);
+        $output->writeln('<info>Fichier des adhérents Kalisport sans licence FFVB ('.$filename.').</info>');
     }
-}    
+}
